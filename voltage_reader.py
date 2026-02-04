@@ -1,82 +1,69 @@
-# adapted from https://github.com/mriscoc/Sparrow-Extended-GUI-for-RIGOL-DHO800_DHO900/discussions/12
 import pyvisa
 import time
-import csv
-import pandas as pd
+import os
 
-CONN = 'TCPIP::localhost::INSTR'
+# ---------------- USER SETTINGS ----------------
+CONN = "USB0::0x1AB1::0x044C::DHO9A264M00069::INSTR"
+INTERVAL = 420  # seconds
+LOG_FILE = "rms_voltage_log.txt"
+SCREENSHOT_DIR = "screenshots"
+CHANNEL = "CHAN1"   # change if needed
+# -----------------------------------------------
 
-def main():
-    try:
-        rm = pyvisa.ResourceManager('@py')  # Use pyvisa-py backend
-        inst = rm.open_resource(CONN)
-        inst.timeout = 5000  # Set timeout to 5 seconds (default, may change since saving a png might be taxing idk)
+os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
-        # get instrument name
-        idn = inst.query(':LAN:DESCription?')
-        print(f'Instrument: {idn}')
+rm = pyvisa.ResourceManager()
+inst = rm.open_resource(CONN)
 
-        inst.write(':MEASure:SOURce CHAN1')
-        headers = ['timestamp', 'time elapsed (s)', 'Vavg (V)']
-        df = pd.DataFrame(columns = headers)
-        df.to_csv('shg_voltage.csv')
-       
-        start_timestamp, start_time = get_sync_moment()
-        start_vavg = get_vavg()
+# Recommended settings for Rigol scopes
+inst.timeout = 10000
+#inst.write(":STOP")          # freeze display for consistent screenshots (ALSO FREEZD MEASUREMENTS)
+inst.write(":WAV:MODE NORM")
 
-        ultra_sensitive = 0
-        for i in range(10000):
-            vavg = get_vavg()
-            timestamp = time.ctime()
-            meas_timestamp, meas_time = get_sync_moment()
-            time_elapsed = start_time - meas_time
-            row = {'timestamp': meas_timestamp, 
-                   'time elapsed (s)': time_elapsed , 
-                   'Vavg (V)': vavg}
-            write_row(headers, row)
+print(inst.query("*IDN?").strip())
 
-            # discuss exact parameters with quantum team
-            if vavg >= 0.5:
-                ultra_sensitive = 1
-                if vavg >= 0.75:
-                    take_photo(timestamp, vavg)
-            elif vavg <= 2.00E-8:
-                ultra_sensitive = 0.5
+def get_vrms():
+    return float(inst.query(f":MEAS:ITEM? VRMS,{CHANNEL}"))
 
-            if ultra_sensitive == 1:
-                time.sleep(1) 
-            if ultra_sensitive == 0.5:
-                time.sleep(2)
-            else:
-                time.sleep(120)
+def take_screenshot(filename):
+    inst.write(":DISP:DATA?")
+    raw = inst.read_raw()
 
-        inst.close()
-        rm.close()
-    except pyvisa.VisaIOError as e:
-        print(f"VISA Error: {e}")
-    except Exception as e:
-        print(f"Unexpected Error: {e}")
+    # Find the PNG header explicitly
+    png_start = raw.find(b'\x89PNG\r\n\x1a\n')
+    if png_start == -1:
+        raise RuntimeError("PNG header not found in scope data")
 
-def get_sync_moment():
-    # Calling these back-to-back minimizes the execution gap
-    wall_time = time.ctime()
-    perf_time = time.perf_counter()
-    return wall_time, perf_time
+    png_data = raw[png_start:]
 
-def get_vavg():
-    vavg = float(inst.query(':MEASure:ITEM? VAVG').strip())
-    return vavg
+    with open(filename, "wb") as f:
+        f.write(png_data)
 
-def take_photo(timestamp, vavg):
-    photo = inst.write(':SAVE:IMAGe:FORMat PNG')
-    photo.save(f'images/{timestamp}_{vavg}V')
+try:
+    with open(LOG_FILE, "a") as log:
+        log.write("# Time (epoch), VRMS (V)\n")
 
-def write_row(headers, row):
-    with open('shg_voltage.csv', 'a', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writerow(row)
-    print(f"Timestamp: {row['timestamp']}; Time elapsed: {row['time elapsed (s)']}; Vavg: {row['Vavg (V)']} V")
-    
+        while True:
+            timestamp = time.time()
+            vrms = get_vrms()
 
-if __name__ == '__main__':
-    main()
+            # Log data
+            log.write(f"{timestamp:.3f}, {vrms:.6f}\n")
+            log.flush()
+
+            # Screenshot
+            screenshot_name = f"{SCREENSHOT_DIR}/scope_{int(timestamp)}.png"
+            take_screenshot(screenshot_name)
+
+            print(f"[{time.ctime()}] VRMS = {vrms:.6f} V")
+
+            time.sleep(INTERVAL)
+
+except KeyboardInterrupt:
+    print("\nMeasurement stopped by user.")
+
+finally:
+    inst.write(":RUN")
+    inst.close()
+    rm.close()
+
