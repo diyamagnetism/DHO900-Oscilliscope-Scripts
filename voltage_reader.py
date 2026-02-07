@@ -5,7 +5,7 @@ import os
 # ---------------- USER SETTINGS ----------------
 CONN = "USB0::0x1AB1::0x044C::DHO9A264M00069::INSTR"
 INTERVAL = 420  # seconds
-LOG_FILE = "rms_voltage_log.txt"
+LOG_FILE = "oscilliscope_data/.../rms_voltage_log.txt" # adjust directory to save to the correct folder
 SCREENSHOT_DIR = "screenshots"
 CHANNEL = "CHAN1"   # change if needed
 # -----------------------------------------------

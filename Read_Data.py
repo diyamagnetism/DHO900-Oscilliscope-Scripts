@@ -1,7 +1,9 @@
 import re
 import matplotlib.pyplot as plt
 
-filename = r"C:\Users\rncit\OneDrive\Desktop\QLATS\Oscilloscope Measurement Codes\Gain Settingg Trials\60dB Gain Setting (2-2-2026).txt"
+# ---------------- CHANGE AS NEEDED ----------------
+filename = r"oscilliscope_data/../blahblahblah.txt"
+#------------------------------------------------
 
 temps = []
 vrms_vals = []
