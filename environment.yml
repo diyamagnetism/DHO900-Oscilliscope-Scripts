@@ -1,0 +1,14 @@
+name: qlats
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - jupyter
+  - ipykernel
+  - numpy
+  - scipy
+  - pandas
+  - pytorch
+  - torchvision
+  - matplotlib
