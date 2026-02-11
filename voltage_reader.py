@@ -8,8 +8,12 @@ INTERVAL = 420  # seconds
 LOG_FILE = "oscilliscope_data/.../rms_voltage_log.txt" # adjust directory to save to the correct folder
 SCREENSHOT_DIR = "screenshots"
 CHANNEL = "CHAN1"   # change if needed
+START_TEMP = 180 # Starting temperature
+TEMP_STEP = 1 # temperature step per interval
 # -----------------------------------------------
 
+
+start_time = time.time()
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 rm = pyvisa.ResourceManager()
@@ -21,6 +25,19 @@ inst.timeout = 10000
 inst.write(":WAV:MODE NORM")
 
 print(inst.query("*IDN?").strip())
+
+def plot_vrms(temp_vals, vrms_vals):
+    plt.figure()
+    plt.plot(temp_vals, vrms_vals, marker='o')
+    plt.xlabel("Temperature")
+    plt.ylabel("VRMS (V)")
+    plt.title("VRMS vs Temperature")
+    plt.grid(True)
+
+    plt.xlim(180, 200)
+    plt.xticks(range(180, 201, 1), fontsize=8)
+
+    plt.show()
 
 def get_vrms():
     return float(inst.query(f":MEAS:ITEM? VRMS,{CHANNEL}"))
@@ -46,6 +63,8 @@ try:
         while True:
             timestamp = time.time()
             vrms = get_vrms()
+            vrms_vals.append(vrms)
+            temp_vals.append((START_TEMP + np.floor((timestamp - start_time)/INTERVAL)))
 
             # Log data
             log.write(f"{timestamp:.3f}, {vrms:.6f}\n")
@@ -56,6 +75,11 @@ try:
             take_screenshot(screenshot_name)
 
             print(f"[{time.ctime()}] VRMS = {vrms:.6f} V")
+
+            plot_vrms(temp_vals, vrms_vals)
+
+            if vrms > 3:
+                print("WARNING: VOLTAGE SATURATION.\n DATA FROM THIS POINT MAY BE UNRELIABLE\n")
 
             time.sleep(INTERVAL)
 
