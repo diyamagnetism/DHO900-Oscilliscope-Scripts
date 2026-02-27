@@ -1,0 +1,40 @@
+<TC300B>
+  <Settings>
+    <Channel1 IsChEnabled="True" TargetTemp="160.0" TargetCurr="100" ModeIdx="0" PidP="0.16" PidI="10.30" PidD="2.57" PidPeriod="100" IsTrigOut="True" DirectionIdx="1" />
+    <Channel2 IsChEnabled="False" TargetTemp="90.000" TargetCurr="100" ModeIdx="0" PidP="0.06" PidI="16.75" PidD="4.18" PidPeriod="100" IsTrigOut="True" DirectionIdx="1" />
+  </Settings>
+  <Sequence IsCycleMode="False" CycleNumber="1" />
+  <Cycle>
+    <Channel1 CycleNumber="1" StepNumber="21">
+      <Step Index="0" RampTime="1" HoldTime="6" Temperature="180" />
+      <Step Index="1" RampTime="1" HoldTime="6" Temperature="181" />
+      <Step Index="2" RampTime="1" HoldTime="6" Temperature="182" />
+      <Step Index="3" RampTime="1" HoldTime="6" Temperature="183" />
+      <Step Index="4" RampTime="1" HoldTime="6" Temperature="184" />
+      <Step Index="5" RampTime="1" HoldTime="6" Temperature="185" />
+      <Step Index="6" RampTime="1" HoldTime="6" Temperature="186" />
+      <Step Index="7" RampTime="1" HoldTime="6" Temperature="187" />
+      <Step Index="8" RampTime="1" HoldTime="6" Temperature="188" />
+      <Step Index="9" RampTime="1" HoldTime="6" Temperature="189" />
+      <Step Index="10" RampTime="1" HoldTime="6" Temperature="190" />
+      <Step Index="11" RampTime="1" HoldTime="6" Temperature="191" />
+      <Step Index="12" RampTime="1" HoldTime="6" Temperature="192" />
+      <Step Index="13" RampTime="1" HoldTime="6" Temperature="193" />
+      <Step Index="14" RampTime="1" HoldTime="6" Temperature="194" />
+      <Step Index="15" RampTime="1" HoldTime="6" Temperature="195" />
+      <Step Index="16" RampTime="1" HoldTime="6" Temperature="196" />
+      <Step Index="17" RampTime="1" HoldTime="6" Temperature="197" />
+      <Step Index="18" RampTime="1" HoldTime="6" Temperature="198" />
+      <Step Index="19" RampTime="1" HoldTime="6" Temperature="199" />
+      <Step Index="20" RampTime="1" HoldTime="6" Temperature="200" />
+    </Channel1>
+    <Channel2 CycleNumber="1" StepNumber="5">
+      <Step Index="0" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="1" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="2" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="3" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="4" RampTime="0" HoldTime="0" Temperature="0" />
+    </Channel2>
+  </Cycle>
+  <Options Brightness="50" IsDarkMode="False" IsQuietMode="False" Ch1SensorTypeIdx="2" Ch1SensorParamTypeIdx="4" Ch1NtcBValue="3976" Ch1ExtBValue="3988" Ch1T0Value="25" Ch1R0Value="10" Ch1HartA="1" Ch1HartB="1" Ch1HartC="1" Ch1MinTemprature="0" Ch1MaxTemprature="200" Ch1MaxCurrent="0.54" Ch1MaxVoltage="24.00" Ch1Offset="0.00" Ch1NTCHighAccuracyState="0" Ch2SensorTypeIdx="2" Ch2SensorParamTypeIdx="4" Ch2NtcBValue="3976" Ch2ExtBValue="3988" Ch2T0Value="25" Ch2R0Value="10" Ch2HartA="1" Ch2HartB="1" Ch2HartC="1" Ch2MinTemprature="0" Ch2MaxTemprature="200" Ch2MaxCurrent="2.00" Ch2MaxVoltage="24.00" Ch2Offset="0.00" Ch2NTCHighAccuracyState="1" />
+</TC300B>
