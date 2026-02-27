@@ -1,0 +1,100 @@
+<TC300B>
+  <Settings>
+    <Channel1 IsChEnabled="True" TargetTemp="160.0" TargetCurr="100" ModeIdx="0" PidP="0.16" PidI="10.30" PidD="2.57" PidPeriod="100" IsTrigOut="True" DirectionIdx="1" />
+    <Channel2 IsChEnabled="False" TargetTemp="90.000" TargetCurr="100" ModeIdx="0" PidP="0.06" PidI="16.75" PidD="4.18" PidPeriod="100" IsTrigOut="True" DirectionIdx="1" />
+  </Settings>
+  <Sequence IsCycleMode="False" CycleNumber="1" />
+  <Cycle>
+    <Channel1 CycleNumber="1" StepNumber="81">
+      <Step Index="0" RampTime="1" HoldTime="9" Temperature="120" />
+      <Step Index="1" RampTime="1" HoldTime="9" Temperature="121" />
+      <Step Index="2" RampTime="1" HoldTime="9" Temperature="122" />
+      <Step Index="3" RampTime="1" HoldTime="9" Temperature="123" />
+      <Step Index="4" RampTime="1" HoldTime="9" Temperature="124" />
+      <Step Index="5" RampTime="1" HoldTime="9" Temperature="125" />
+      <Step Index="6" RampTime="1" HoldTime="9" Temperature="126" />
+      <Step Index="7" RampTime="1" HoldTime="9" Temperature="127" />
+      <Step Index="8" RampTime="1" HoldTime="9" Temperature="128" />
+      <Step Index="9" RampTime="1" HoldTime="9" Temperature="129" />
+      <Step Index="10" RampTime="1" HoldTime="9" Temperature="130" />
+      <Step Index="11" RampTime="1" HoldTime="9" Temperature="131" />
+      <Step Index="12" RampTime="1" HoldTime="9" Temperature="132" />
+      <Step Index="13" RampTime="1" HoldTime="9" Temperature="133" />
+      <Step Index="14" RampTime="1" HoldTime="9" Temperature="134" />
+      <Step Index="15" RampTime="1" HoldTime="9" Temperature="135" />
+      <Step Index="16" RampTime="1" HoldTime="9" Temperature="136" />
+      <Step Index="17" RampTime="1" HoldTime="9" Temperature="137" />
+      <Step Index="18" RampTime="1" HoldTime="9" Temperature="138" />
+      <Step Index="19" RampTime="1" HoldTime="9" Temperature="139" />
+      <Step Index="20" RampTime="1" HoldTime="9" Temperature="140" />
+      <Step Index="21" RampTime="1" HoldTime="9" Temperature="141" />
+      <Step Index="22" RampTime="1" HoldTime="9" Temperature="142" />
+      <Step Index="23" RampTime="1" HoldTime="9" Temperature="143" />
+      <Step Index="24" RampTime="1" HoldTime="9" Temperature="144" />
+      <Step Index="25" RampTime="1" HoldTime="9" Temperature="145" />
+      <Step Index="26" RampTime="1" HoldTime="9" Temperature="146" />
+      <Step Index="27" RampTime="1" HoldTime="9" Temperature="147" />
+      <Step Index="28" RampTime="1" HoldTime="9" Temperature="148" />
+      <Step Index="29" RampTime="1" HoldTime="9" Temperature="149" />
+      <Step Index="30" RampTime="1" HoldTime="9" Temperature="150" />
+      <Step Index="31" RampTime="1" HoldTime="9" Temperature="151" />
+      <Step Index="32" RampTime="1" HoldTime="9" Temperature="152" />
+      <Step Index="33" RampTime="1" HoldTime="9" Temperature="153" />
+      <Step Index="34" RampTime="1" HoldTime="9" Temperature="154" />
+      <Step Index="35" RampTime="1" HoldTime="9" Temperature="155" />
+      <Step Index="36" RampTime="1" HoldTime="9" Temperature="156" />
+      <Step Index="37" RampTime="1" HoldTime="9" Temperature="157" />
+      <Step Index="38" RampTime="1" HoldTime="9" Temperature="158" />
+      <Step Index="39" RampTime="1" HoldTime="9" Temperature="159" />
+      <Step Index="40" RampTime="1" HoldTime="9" Temperature="160" />
+      <Step Index="41" RampTime="1" HoldTime="9" Temperature="161" />
+      <Step Index="42" RampTime="1" HoldTime="9" Temperature="162" />
+      <Step Index="43" RampTime="1" HoldTime="9" Temperature="163" />
+      <Step Index="44" RampTime="1" HoldTime="9" Temperature="164" />
+      <Step Index="45" RampTime="1" HoldTime="9" Temperature="165" />
+      <Step Index="46" RampTime="1" HoldTime="9" Temperature="166" />
+      <Step Index="47" RampTime="1" HoldTime="9" Temperature="167" />
+      <Step Index="48" RampTime="1" HoldTime="9" Temperature="168" />
+      <Step Index="49" RampTime="1" HoldTime="9" Temperature="169" />
+      <Step Index="50" RampTime="1" HoldTime="9" Temperature="170" />
+      <Step Index="51" RampTime="1" HoldTime="9" Temperature="171" />
+      <Step Index="52" RampTime="1" HoldTime="9" Temperature="172" />
+      <Step Index="53" RampTime="1" HoldTime="9" Temperature="173" />
+      <Step Index="54" RampTime="1" HoldTime="9" Temperature="174" />
+      <Step Index="55" RampTime="1" HoldTime="9" Temperature="175" />
+      <Step Index="56" RampTime="1" HoldTime="9" Temperature="176" />
+      <Step Index="57" RampTime="1" HoldTime="9" Temperature="177" />
+      <Step Index="58" RampTime="1" HoldTime="9" Temperature="178" />
+      <Step Index="59" RampTime="1" HoldTime="9" Temperature="179" />
+      <Step Index="60" RampTime="1" HoldTime="9" Temperature="180" />
+      <Step Index="61" RampTime="1" HoldTime="9" Temperature="181" />
+      <Step Index="62" RampTime="1" HoldTime="9" Temperature="182" />
+      <Step Index="63" RampTime="1" HoldTime="9" Temperature="183" />
+      <Step Index="64" RampTime="1" HoldTime="9" Temperature="184" />
+      <Step Index="65" RampTime="1" HoldTime="9" Temperature="185" />
+      <Step Index="66" RampTime="1" HoldTime="9" Temperature="186" />
+      <Step Index="67" RampTime="1" HoldTime="9" Temperature="187" />
+      <Step Index="68" RampTime="1" HoldTime="9" Temperature="188" />
+      <Step Index="69" RampTime="1" HoldTime="9" Temperature="189" />
+      <Step Index="70" RampTime="1" HoldTime="9" Temperature="190" />
+      <Step Index="71" RampTime="1" HoldTime="9" Temperature="191" />
+      <Step Index="72" RampTime="1" HoldTime="9" Temperature="192" />
+      <Step Index="73" RampTime="1" HoldTime="9" Temperature="193" />
+      <Step Index="74" RampTime="1" HoldTime="9" Temperature="194" />
+      <Step Index="75" RampTime="1" HoldTime="9" Temperature="195" />
+      <Step Index="76" RampTime="1" HoldTime="9" Temperature="196" />
+      <Step Index="77" RampTime="1" HoldTime="9" Temperature="197" />
+      <Step Index="78" RampTime="1" HoldTime="9" Temperature="198" />
+      <Step Index="79" RampTime="1" HoldTime="9" Temperature="199" />
+      <Step Index="80" RampTime="1" HoldTime="9" Temperature="200" />
+    </Channel1>
+    <Channel2 CycleNumber="1" StepNumber="5">
+      <Step Index="0" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="1" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="2" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="3" RampTime="0" HoldTime="0" Temperature="0" />
+      <Step Index="4" RampTime="0" HoldTime="0" Temperature="0" />
+    </Channel2>
+  </Cycle>
+  <Options Brightness="50" IsDarkMode="False" IsQuietMode="False" Ch1SensorTypeIdx="2" Ch1SensorParamTypeIdx="4" Ch1NtcBValue="3976" Ch1ExtBValue="3988" Ch1T0Value="25" Ch1R0Value="10" Ch1HartA="1" Ch1HartB="1" Ch1HartC="1" Ch1MinTemprature="0" Ch1MaxTemprature="200" Ch1MaxCurrent="0.54" Ch1MaxVoltage="24.00" Ch1Offset="0.00" Ch1NTCHighAccuracyState="0" Ch2SensorTypeIdx="2" Ch2SensorParamTypeIdx="4" Ch2NtcBValue="3976" Ch2ExtBValue="3988" Ch2T0Value="25" Ch2R0Value="10" Ch2HartA="1" Ch2HartB="1" Ch2HartC="1" Ch2MinTemprature="0" Ch2MaxTemprature="200" Ch2MaxCurrent="2.00" Ch2MaxVoltage="24.00" Ch2Offset="0.00" Ch2NTCHighAccuracyState="1" />
+</TC300B>
