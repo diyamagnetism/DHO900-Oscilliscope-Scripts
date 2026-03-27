@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # ---------------- CHANGE AS NEEDED ----------------
-filename = r"oscilliscope_data/gain_setting_trials/60dB_gain.txt"
+filename = r"oscilliscope_data/New-Mount-Narrow-Sweep-180 to 200.txt"
 #------------------------------------------------
 
 

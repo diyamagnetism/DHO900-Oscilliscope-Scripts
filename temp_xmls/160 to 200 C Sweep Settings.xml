@@ -56,5 +56,10 @@
       <Step Index="4" RampTime="0" HoldTime="0" Temperature="0" />
     </Channel2>
   </Cycle>
-  <Options Brightness="50" IsDarkMode="False" IsQuietMode="False" Ch1SensorTypeIdx="2" Ch1SensorParamTypeIdx="4" Ch1NtcBValue="3976" Ch1ExtBValue="3988" Ch1T0Value="25" Ch1R0Value="10" Ch1HartA="1" Ch1HartB="1" Ch1HartC="1" Ch1MinTemprature="0" Ch1MaxTemprature="200" Ch1MaxCurrent="0.54" Ch1MaxVoltage="24.00" Ch1Offset="0.00" Ch1NTCHighAccuracyState="0" Ch2SensorTypeIdx="2" Ch2SensorParamTypeIdx="4" Ch2NtcBValue="3976" Ch2ExtBValue="3988" Ch2T0Value="25" Ch2R0Value="10" Ch2HartA="1" Ch2HartB="1" Ch2HartC="1" Ch2MinTemprature="0" Ch2MaxTemprature="200" Ch2MaxCurrent="2.00" Ch2MaxVoltage="24.00" Ch2Offset="0.00" Ch2NTCHighAccuracyState="1" />
+  <Options Brightness="50" IsDarkMode="False" IsQuietMode="False" Ch1SensorTypeIdx="2" Ch1SensorParamTypeIdx="4" 
+  Ch1NtcBValue="3976" Ch1ExtBValue="3988" Ch1T0Value="25" Ch1R0Value="10" Ch1HartA="1" Ch1HartB="1" Ch1HartC="1" 
+  Ch1MinTemprature="0" Ch1MaxTemprature="200" Ch1MaxCurrent="0.54" Ch1MaxVoltage="24.00" Ch1Offset="0.00" 
+  Ch1NTCHighAccuracyState="0" Ch2SensorTypeIdx="2" Ch2SensorParamTypeIdx="4" Ch2NtcBValue="3976" 
+  Ch2ExtBValue="3988" Ch2T0Value="25" Ch2R0Value="10" Ch2HartA="1" Ch2HartB="1" Ch2HartC="1" Ch2MinTemprature="0" 
+  Ch2MaxTemprature="200" Ch2MaxCurrent="2.00" Ch2MaxVoltage="24.00" Ch2Offset="0.00" Ch2NTCHighAccuracyState="1" />
 </TC300B>
