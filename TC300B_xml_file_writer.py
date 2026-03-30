@@ -5,6 +5,7 @@ Generates XML configuration files for the TC300B temperature controller.
  
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+from pathlib import Path
  
  
 def generate_steps(start_temp, end_temp, ramp_time, hold_time, step_size=1):
@@ -86,11 +87,19 @@ def generate_tc300b_xml(
     """
     #-----checking for errors----
     if (ch1_end_temp - ch1_start_temp) * (ch1_step_size) < 0:
-        raise Exception("Direction of Ch1 Temperature change does not match step direction")
+        print("Direction of Ch1 Temperature change does not match step direction")
+        return
     
     if (ch1_end_temp > 200) | (ch1_start_temp > 200):
-        raise Exception("Ch1 Temperature higher than max oven temp")
+        print("Ch1 Temperature higher than max oven temp")
+        return
 
+    
+    file_path = Path(output_path)
+
+    if file_path.is_file():
+        print(f"The file {file_path} already exists and is a file.")
+        return
 
 
     # --- Build step lists ---
@@ -99,7 +108,9 @@ def generate_tc300b_xml(
  
     if ch2_steps is None:
         ch2_steps = [{"RampTime": 0, "HoldTime": 0, "Temperature": 0}] * ch2_num_blank_steps
- 
+
+
+
     # --- Root ---
     root = ET.Element("TC300B")
  
@@ -181,7 +192,7 @@ def generate_tc300b_xml(
         Ch2MaxCurrent="2.00", Ch2MaxVoltage="24.00", Ch2Offset="0.00",
         Ch2NTCHighAccuracyState="1",
     )
- 
+
     # --- Pretty-print and write ---
     raw = ET.tostring(root, encoding="unicode")
     pretty = minidom.parseString(raw).toprettyxml(indent="  ")
@@ -197,34 +208,9 @@ def generate_tc300b_xml(
  
  
 # =============================================================================
-# Example usage — edit these values to suit your experiment
+# Edit these values to create xml file
 # =============================================================================
 if __name__ == "__main__":
- 
-    # # --- Example 1: Simple linear ramp (auto-generated steps) ---
-    # generate_tc300b_xml(
-    #     output_path="tc300b_ramp_180_to_200.xml",
-    #     ch1_start_temp=180,
-    #     ch1_end_temp=200,
-    #     ch1_ramp_time=1,
-    #     ch1_hold_time=6,
-    #     ch1_step_size=1,
-    #     ch2_num_blank_steps=5,
-    # )
- 
-    # # --- Example 2: Custom steps with varying ramp/hold times ---
-    # custom_steps = [
-    #     {"RampTime": 5,  "HoldTime": 30, "Temperature": 100},
-    #     {"RampTime": 10, "HoldTime": 60, "Temperature": 150},
-    #     {"RampTime": 10, "HoldTime": 120, "Temperature": 200},
-    #     {"RampTime": 5,  "HoldTime": 30, "Temperature": 180},
-    # ]
-    # generate_tc300b_xml(
-    #     ch1_steps=custom_steps,
-    #     ch1_target_temp=200.0,
-    #     ch2_num_blank_steps=5,
-    #     output_path="tc300b_custom_steps.xml",
-    # )
  
     # Now I will try to reproduce the 5 xml files and check the accuracy
     generate_tc300b_xml(
@@ -262,6 +248,19 @@ if __name__ == "__main__":
         ch1_hold_time=9,
         ch1_step_size=1,
         ch2_num_blank_steps=5,
+    )
+
+    
+
+    custom_steps = generate_steps(180, 199, 1, 9, step_size=1) + [
+        {"RampTime": 1,  "HoldTime": 30, "Temperature": 200}
+    ] 
+
+    generate_tc300b_xml(
+        ch1_steps=custom_steps,
+        ch1_target_temp=200.0,
+        ch2_num_blank_steps=5,
+        output_path="temp_xmls/tc300b_ramp_180_to_200_with_hold.xml",
     )
 
     # # test if it can handle conflicting info
