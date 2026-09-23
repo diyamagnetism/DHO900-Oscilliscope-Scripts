@@ -1,0 +1,74 @@
+"""
+NI USB-6251 voltage reading with CSV logging
+------------------------------------------------------
+Reads an analog input channel at a user-defined sampling interval, for a
+user-defined number of samples, and logs each reading + timestamp to a
+CSV file.
+
+Requirements:
+    pip install nidaqmx
+
+Hardware:
+    NI USB-6251 (or any NI DAQ with an analog input channel), NI-DAQmx
+    driver installed, and the device configured in NI MAX (note its device
+    name, e.g. "Dev1").
+"""
+
+import csv
+import time
+from datetime import datetime
+
+import nidaqmx
+from nidaqmx.constants import TerminalConfiguration
+
+# ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
+DEVICE_NAME = "Dev1"          # Device name as it appears in NI MAX
+AI_CHANNEL = "ai1"            # Analog input channel to read
+MIN_VOLTAGE = -10.0           # Expected minimum input voltage (V)
+MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
+
+SAMPLE_INTERVAL_S = 2.0       # Time between reads (seconds)
+NUM_SAMPLES = 100              # Number of readings to take
+
+OUTPUT_CSV_PREFIX = "ppln_only_data\\voltage_read_log"  # Output CSV file prefix (timestamp is appended)
+# ----------------------------------------------------------------------------
+ 
+ 
+def read_voltage(task):
+    """Take a single voltage reading from the given (already-open) AI task."""
+    return task.read()
+ 
+ 
+def main():
+    run_start = datetime.now().strftime("%Y%m%d_%H%M")
+    output_csv = f"{OUTPUT_CSV_PREFIX}_{run_start}.csv"
+ 
+    with open(output_csv, mode="w", newline="") as f, \
+         nidaqmx.Task() as task:
+ 
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "measured_voltage_V"])
+ 
+        task.ai_channels.add_ai_voltage_chan(
+            f"{DEVICE_NAME}/{AI_CHANNEL}",
+            terminal_config=TerminalConfiguration.DEFAULT,
+            min_val=MIN_VOLTAGE,
+            max_val=MAX_VOLTAGE,
+        )
+ 
+        for i in range(NUM_SAMPLES):
+            voltage = read_voltage(task)
+            timestamp = datetime.now().isoformat()
+            writer.writerow([timestamp, voltage])
+            f.flush()
+            print(f"{timestamp}  ->  {voltage:.4f} V")
+ 
+            if i < NUM_SAMPLES - 1:
+                time.sleep(SAMPLE_INTERVAL_S)
+ 
+    print(f"\nDone. Log written to: {output_csv}")
+ 
+ 
+if __name__ == "__main__":
+    main()
+ 
