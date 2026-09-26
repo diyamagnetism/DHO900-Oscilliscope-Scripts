@@ -13,7 +13,7 @@ Hardware:
     driver installed, and the device configured in NI MAX (note its device
     name, e.g. "Dev1").
 """
-
+import os
 import csv
 import time
 from datetime import datetime
@@ -30,7 +30,8 @@ MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
 SAMPLE_INTERVAL_S = 2.0       # Time between reads (seconds)
 NUM_SAMPLES = 100              # Number of readings to take
 
-OUTPUT_CSV_PREFIX = "ppln_only_data\\voltage_read_log"  # Output CSV file prefix (timestamp is appended)
+OUTPUT_CSV_DIRECTORY = "ppln_only_data"  # Directory for output CSV files
+OUTPUT_CSV_PREFIX = "voltage_read_log"  # Output CSV file prefix (timestamp is appended)
 # ----------------------------------------------------------------------------
  
  
@@ -41,8 +42,9 @@ def read_voltage(task):
  
 def main():
     run_start = datetime.now().strftime("%Y%m%d_%H%M")
-    output_csv = f"{OUTPUT_CSV_PREFIX}_{run_start}.csv"
- 
+    os.makedirs(OUTPUT_CSV_DIRECTORY, exist_ok=True)
+    output_csv = os.path.join(OUTPUT_CSV_DIRECTORY, f"{OUTPUT_CSV_PREFIX}_{run_start}.csv")
+
     with open(output_csv, mode="w", newline="") as f, \
          nidaqmx.Task() as task:
  
