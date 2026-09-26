@@ -20,6 +20,7 @@ from datetime import datetime
 
 import nidaqmx
 from nidaqmx.constants import TerminalConfiguration
+import nidaqmx.system
 
 # ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
 DEVICE_NAME = "Dev1"          # Device name as it appears in NI MAX
@@ -41,6 +42,9 @@ def read_voltage(task):
  
  
 def main():
+    system = nidaqmx.system.System.local()
+    for device in system.devices:
+        print(device.name, "-", device.product_type)
     run_start = datetime.now().strftime("%Y%m%d_%H%M")
     os.makedirs(OUTPUT_CSV_DIRECTORY, exist_ok=True)
     output_csv = os.path.join(OUTPUT_CSV_DIRECTORY, f"{OUTPUT_CSV_PREFIX}_{run_start}.csv")
