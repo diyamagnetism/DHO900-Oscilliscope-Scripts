@@ -12,6 +12,8 @@ def browse(node, depth=0):
         browse(child, depth + 1)
 
 try:
+
+    
     print(client)
     client.connect()
     browse(client.get_objects_node())
