@@ -20,7 +20,6 @@ from datetime import datetime
 
 import nidaqmx
 from nidaqmx.constants import TerminalConfiguration
-import nidaqmx.system
 
 # ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
 DEVICE_NAME = "Dev1"          # Device name as it appears in NI MAX
@@ -28,11 +27,11 @@ AI_CHANNEL = "ai1"            # Analog input channel to read
 MIN_VOLTAGE = -10.0           # Expected minimum input voltage (V)
 MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
 
-SAMPLE_INTERVAL_S = 2.0       # Time between reads (seconds)
-NUM_SAMPLES = 100              # Number of readings to take
+SAMPLE_INTERVAL_S = 1.0       # Time between reads (seconds)
+NUM_SAMPLES = 400              # Number of readings to take
 
-OUTPUT_CSV_DIRECTORY = "ppln_only_data"  # Directory for output CSV files
-OUTPUT_CSV_PREFIX = "voltage_read_log"  # Output CSV file prefix (timestamp is appended)
+OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\1550_calibration"  # Directory for output CSV files
+OUTPUT_CSV_PREFIX = "calibration_voltage"  # Output CSV file prefix (timestamp is appended)
 # ----------------------------------------------------------------------------
  
  
@@ -42,9 +41,6 @@ def read_voltage(task):
  
  
 def main():
-    system = nidaqmx.system.System.local()
-    for device in system.devices:
-        print(device.name, "-", device.product_type)
     run_start = datetime.now().strftime("%Y%m%d_%H%M")
     os.makedirs(OUTPUT_CSV_DIRECTORY, exist_ok=True)
     output_csv = os.path.join(OUTPUT_CSV_DIRECTORY, f"{OUTPUT_CSV_PREFIX}_{run_start}.csv")
