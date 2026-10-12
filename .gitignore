@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 ppln_only_data/
 Lib/
+Scripts/
