@@ -1,0 +1,312 @@
+
+# Python API for ID OSA
+# by Christian Schwarz / id-photonics.com
+
+# Serial version is adapted from the TCP/IP version (ID_OSA_IP) by Christian Schwarz / id-photonics.com.
+# Close PuTTY (or any other program) before running: only one program can hold the COM port.
+# -----------------------------------------------------------------------------------
+
+import socket
+import time
+from decimal import Decimal
+import numpy
+import serial
+from serial.tools import list_ports
+
+
+def find_ports():
+    ''' Returns a list of (device, description) for all serial ports on this PC. '''
+    return [(p.device, p.description) for p in list_ports.comports()]
+
+
+class ID_OSA_Serial:
+    def __init__(self, port, baudrate=115200, timeout=10.0):
+        ''' initializes ID OSA over its USB virtual COM port
+            parameters:
+                port:     COM port as string, e.g. 'COM5' (see Device Manager -> Ports)
+                baudrate: 115200 per the ID OSA manual (8N1)
+                timeout:  seconds to wait for a reply before raising TimeoutError.
+                          Increase this if you use many scan averages.
+        '''
+        self.port = port
+        self.ser = serial.Serial(port, baudrate=baudrate, bytesize=serial.EIGHTBITS,
+                                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+                                 timeout=timeout)
+        self.ser.reset_input_buffer()
+
+    def close(self):
+        if self.ser.is_open:
+            self.ser.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    # ------------------------------------------------------------------ settings
+
+    def setStartStopFreq(self, start, stop):
+        ''' Sets start and stop frequency of the OSA in THz. '''
+        # Minimum start freq for ID OSA is 191.25THz
+        if start < 191.25:
+            start = 191.25
+
+        start = "{:.5E}".format(Decimal(str(start * 1e12)))
+        stop = "{:.5E}".format(Decimal(str(stop * 1e12)))
+        self.writeSCPI("star " + start)
+        self.writeSCPI("stop " + stop)
+
+    def setCenterSpanFreq(self, center, span):
+        ''' Sets Center frequency and span of the OSA in THz. '''
+        start = center - span * 1. / 2
+        stop = center + span * 1. / 2
+        self.setStartStopFreq(start, stop)
+
+    def setStartStopWL(self, startWLnm, stopWLnm):
+        ''' Sets start and stop wavelength of the OSA in nm. '''
+        c = 299792458.0  # speed of light
+        start = c / stopWLnm / 1000
+        stop = c / startWLnm / 1000
+        center = (start + stop) * 1. / 2
+        span = stop - start
+        self.setCenterSpanFreq(center, span)
+
+    def setCenterSpanWL(self, centerWLnm, spanWLnm):
+        ''' Sets center wavelength and span of the OSA in nm. '''
+        c = 299792458.0  # speed of light
+        stopWLnm = centerWLnm + spanWLnm * 1. / 2
+        startWLnm = centerWLnm - spanWLnm * 1. / 2
+        start = c / stopWLnm / 1000
+        stop = c / startWLnm / 1000
+        center = (start + stop) * 1. / 2
+        span = stop - start
+        self.setCenterSpanFreq(center, span)
+
+    # ------------------------------------------------------------------ scanning
+
+    def getScanNumber(self):
+        return self.writeSCPI("numb?")
+
+    def triggerScan(self, timeout=60.0):
+        ''' Starts a single scan and blocks until the scan number has increased. '''
+        num = self.getScanNumber()
+        self.writeSCPI("SGL")
+        t0 = time.time()
+        while self.getScanNumber() == num:
+            if time.time() - t0 > timeout:
+                raise TimeoutError("Scan did not complete within %.0f s" % timeout)
+            time.sleep(0.02)
+
+    def getXY(self):
+        ''' Returns an (N, 2) numpy array of (x, power[dB]) from the last scan.
+            x is in Hz or m depending on the UNIT:X setting. '''
+        wave_data = self.writeSCPIBinary("trac:X?")
+        pwr_data = self.writeSCPIBinary("trac:Y?")
+        wave_arr = numpy.frombuffer(wave_data, dtype='<f4')
+        pwr_arr = numpy.frombuffer(pwr_data, dtype='<f4')
+        return numpy.column_stack((wave_arr, pwr_arr))
+
+    def waitOPC(self):
+        self.writeSCPI("*wai")
+
+    # ------------------------------------------------------------------ low level
+
+    def _send(self, commandstr):
+        # Discard stale bytes, then send with a single line feed. The manual warns that
+        # two terminators (e.g. ";" and LF) cause "ERR 100", so strip any trailing ";".
+        self.ser.reset_input_buffer()
+        self.ser.write((commandstr.strip().rstrip(";") + "\n").encode("ascii"))
+
+    def _read_exact(self, count):
+        data = self.ser.read(count)
+        if len(data) != count:
+            raise TimeoutError("Timed out: got %d of %d bytes from %s"
+                               % (len(data), count, self.port))
+        return data
+
+    def writeSCPI(self, commandstr):
+        ''' Sends one SCPI command and returns the reply without its trailing ";". '''
+        self._send(commandstr)
+        line = self.ser.read_until(b"\n")
+        if not line.endswith(b"\n"):
+            raise TimeoutError("No reply to %r from %s" % (commandstr, self.port))
+        answer = line.decode("ascii", errors="replace").strip()
+        if answer.endswith(";"):
+            answer = answer[:-1]
+        print("RX: >" + answer + "<")
+        return answer
+
+    def writeSCPIBinary(self, commandstr):
+        ''' Sends a command whose reply is an IEEE 488.2 binary block (#<n><len><data>). '''
+        self._send(commandstr)
+        first = self._read_exact(1)
+        if first != b"#":
+            # Not a binary block: most likely an error message, e.g. "ERR 250"
+            rest = self.ser.read_until(b"\n")
+            raise IOError("Unexpected reply to %r: %r"
+                          % (commandstr, (first + rest).decode("ascii", errors="replace").strip()))
+        cntcnt = int(self._read_exact(1).decode("ascii"))
+        cnt = int(self._read_exact(cntcnt).decode("ascii"))
+        data = self._read_exact(cnt)
+        self.ser.read_until(b"\n")      # consume the trailing ";" + line ending
+        return data
+
+
+# # Alias so scripts written for the original API (osa = ID_OSA(...)) keep working.
+# # Pass a COM port such as 'COM5' instead of an IP address.
+# ID_OSA = ID_OSA_Serial
+
+
+
+
+
+
+class ID_OSA_IP:
+    def __init__(self, ip_address):
+        ''' initializes ID OSA
+            parameters:
+                ip_address: IP address as string
+        '''
+        self.ip_address = ip_address
+        self.tcp_port = 2000
+        self.socket = socket.socket()
+        self.socket.connect((self.ip_address, self.tcp_port))
+        self.socket.setblocking(0)
+
+    def setStartStopFreq(self, start, stop):
+        ''' Sets start and stop frequency of the OSA in THz. '''
+        # center = (start+stop)*1./2
+        # span=stop-start
+        # self.setCenterSpanFreq(center, span)
+
+        # Minimum start freq for ID OSA is 191.25THz
+        if start < 191.25:
+            start = 191.25
+
+        start = "{:.5E}".format(Decimal(str(start * 1e12)))
+        stop = "{:.5E}".format(Decimal(str(stop * 1e12)))
+        # print "start:\t", start
+        # print "stop:\t", stop
+        self.writeSCPI(str("star "+start))
+        self.writeSCPI(str("stop "+stop))
+        # print self.writeSCPI("span?")
+        # print self.writeSCPI("cent?")
+
+    def setCenterSpanFreq(self, center, span):
+        ''' Sets Center frequency and span of the OSA in THz. '''
+        start = center - span*1./2
+        stop = center + span*1./2
+        self.setStartStopFreq(start, stop)
+
+        # center = "{:.5E}".format(Decimal(str(center * 1e12)))
+        # span = "{:.5E}".format(Decimal(str(span * 1e12)))
+        # self.write(str("span "+span))
+        # self.write(str("cent "+center))
+
+    def setStartStopWL(self, startWLnm, stopWLnm):
+        ''' Sets start and stop wavelength of the OSA in nm. '''
+        c = 299792458.0 #speed of light
+        start = c/stopWLnm/1000
+        stop = c/startWLnm/1000
+        center = (start+stop)*1./2
+        span = stop-start
+        self.setCenterSpanFreq(center, span)
+
+    def setCenterSpanWL(self, centerWLnm, spanWLnm):
+        ''' Sets center wavelength and span of the OSA in nm. '''
+        c = 299792458.0 #speed of light
+        stopWLnm=centerWLnm+spanWLnm*1./2
+        startWLnm=centerWLnm-spanWLnm*1./2
+        start = c/stopWLnm/1000
+        stop = c/startWLnm/1000
+        center = (start+stop)*1./2
+        span = stop-start
+        self.setCenterSpanFreq(center, span)
+
+    def getScanNumber(self):
+        return self.writeSCPI("numb?")
+
+    def triggerScan(self):
+        num = self.getScanNumber()
+        self.writeSCPI("SGL")
+        while self.getScanNumber() != num:
+            time.sleep(0.02)
+
+    def getXY(self):
+        wave_data = self.writeSCPIBinary("trac:X?")
+        pwr_data = self.writeSCPIBinary("trac:Y?")
+        wave_arr = numpy.frombuffer(wave_data, dtype='<f4')
+        pwr_arr = numpy.frombuffer(pwr_data, dtype='<f4')
+        return numpy.column_stack((wave_arr, pwr_arr))
+
+    def writeSCPI(self, commandstr):
+        try:
+            self.socket.recv(1024)      # skip possible old bytes (if any)
+        except BlockingIOError:
+            pass
+
+        commandstr = commandstr + ";"
+        #print("TX: >" + commandstr + "<")
+        self.socket.sendall(commandstr.encode('utf-8'))
+        answer = ''
+        while True:
+            try:
+                answer = answer + self.socket.recv(1024).decode('utf-8').rstrip()
+                if answer[len(answer)-1] == ';':
+                    break
+            except BlockingIOError:
+                time.sleep(0.01)
+                pass
+        #print("RX: >" + answer + "<")
+        answer = answer[:-1]        # chop off trailing ";"
+        #print("RET:>" + answer + "<")
+        return answer
+
+    def writeSCPIBinary(self, commandstr):
+        try:
+            self.socket.recv(1024)      # skip possible old bytes (if any)
+        except BlockingIOError:
+            pass
+
+        commandstr = commandstr + ";"
+        #print("TX: >" + commandstr + "<")
+        self.socket.sendall(commandstr.encode('utf-8'))
+
+        answer = str(self.receiveBytes(1).decode('utf-8'))
+        #print("RX0: >" + answer + "<")
+        cntcnt = int(self.receiveBytes(1).decode('utf-8'))
+        #print("RX1: >" + str(cntcnt) + "<")
+        cnt = 0
+        for i in range(0, cntcnt):
+            cnt = cnt * 10 + int(self.receiveBytes(1).decode('utf-8'))
+        #print("Count of bytes in reply: " + str(cnt) + " (cntcnt is " + str(cntcnt) + ")")
+
+        data = self.receiveBytes(cnt + 3)
+        data = data[:-3]        # chop off trailing ";\r\n"
+        #print(str(len(data)))
+
+        return data
+
+    def waitOPC(self):
+        self.writeSCPI("*wai")
+
+    def receiveBytes(self, count):
+        answer = bytearray()
+        while True:
+            try:
+                answer1 = bytearray(self.socket.recv(count))
+                if len(answer) == 0:
+                    answer = answer1
+                else:
+                    # append
+                    for b in answer1:
+                        answer.append(b)
+
+                #print("Got " + str(len(answer)) + " bytes, expected " + str(count))
+
+                if len(answer) == count:
+                    return answer
+            except BlockingIOError:
+                time.sleep(0.01)
+                pass
