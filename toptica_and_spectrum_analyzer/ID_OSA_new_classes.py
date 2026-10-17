@@ -17,28 +17,16 @@ from serial.tools import list_ports
 def find_ports():
     ''' Returns a list of (device, description) for all serial ports on this PC. '''
     return [(p.device, p.description) for p in list_ports.comports()]
-
-# Serial (USB virtual COM port) version of the ID Photonics ID OSA Python API.
-# Adapted from the TCP/IP version (ID_OSA_IP) by Christian Schwarz / id-photonics.com.
-#
-# Requires:  pip install pyserial numpy
-# Close PuTTY (or any other program) before running: only one program can hold the COM port.
-# -----------------------------------------------------------------------------------
-
-import time
-from decimal import Decimal
-
-import numpy
-import serial
-from serial.tools import list_ports
-
-
-def find_ports():
-    ''' Returns a list of (device, description) for all serial ports on this PC. '''
-    return [(p.device, p.description) for p in list_ports.comports()]
-
-
+ 
+ 
+class OSAError(IOError):
+    ''' The unit answered a command with an error, e.g. "ERR 100, unknown command". '''
+    pass
+ 
+ 
 class ID_OSA_Serial:
+
+ 
     def __init__(self, port, baudrate=115200, timeout=10.0):
         ''' initializes ID OSA over its USB virtual COM port
             parameters:
@@ -52,36 +40,37 @@ class ID_OSA_Serial:
                                  parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                                  timeout=timeout)
         self.ser.reset_input_buffer()
-
+        self._xy_supported = None
+ 
     def close(self):
         if self.ser.is_open:
             self.ser.close()
-
+ 
     def __enter__(self):
         return self
-
+ 
     def __exit__(self, *exc):
         self.close()
-
+ 
     # ------------------------------------------------------------------ settings
-
+ 
     def setStartStopFreq(self, start, stop):
         ''' Sets start and stop frequency of the OSA in THz. '''
         # Minimum start freq for ID OSA is 191.25THz
         if start < 191.25:
             start = 191.25
-
+ 
         start = "{:.5E}".format(Decimal(str(start * 1e12)))
         stop = "{:.5E}".format(Decimal(str(stop * 1e12)))
         self.writeSCPI("star " + start)
         self.writeSCPI("stop " + stop)
-
+ 
     def setCenterSpanFreq(self, center, span):
         ''' Sets Center frequency and span of the OSA in THz. '''
         start = center - span * 1. / 2
         stop = center + span * 1. / 2
         self.setStartStopFreq(start, stop)
-
+ 
     def setStartStopWL(self, startWLnm, stopWLnm):
         ''' Sets start and stop wavelength of the OSA in nm. '''
         c = 299792458.0  # speed of light
@@ -90,7 +79,7 @@ class ID_OSA_Serial:
         center = (start + stop) * 1. / 2
         span = stop - start
         self.setCenterSpanFreq(center, span)
-
+ 
     def setCenterSpanWL(self, centerWLnm, spanWLnm):
         ''' Sets center wavelength and span of the OSA in nm. '''
         c = 299792458.0  # speed of light
@@ -101,12 +90,12 @@ class ID_OSA_Serial:
         center = (start + stop) * 1. / 2
         span = stop - start
         self.setCenterSpanFreq(center, span)
-
+ 
     # ------------------------------------------------------------------ scanning
-
+ 
     def getScanNumber(self):
         return self.writeSCPI("numb?")
-
+ 
     def triggerScan(self, timeout=60.0):
         ''' Starts a single scan and blocks until the scan number has increased. '''
         num = self.getScanNumber()
@@ -116,13 +105,38 @@ class ID_OSA_Serial:
             if time.time() - t0 > timeout:
                 raise TimeoutError("Scan did not complete within %.0f s" % timeout)
             time.sleep(0.02)
-
-
+ 
+    def getXY(self, form=None, scan_number_at="auto", timeout=60.0):
+        ''' Returns an (N, 2) numpy array of (x, power[dB]) from the last scan, sorted by
+            ascending x. x is in Hz or m depending on the UNIT:X setting.
+            Uses TRAC:XY? when the unit has it. Firmware 1.2.0 does not, so this falls back
+            to separate TRAC:XAUTO? and TRAC:Y? reads (form and scan_number_at only matter
+            then; see getX()). Note the fallback returns Y in dBm or mW per TRAC:LINL,
+            while XY? is always dB. '''
+        if self._xy_supported is not False:
+            old_timeout = self.ser.timeout
+            self.ser.timeout = timeout
+            try:
+                data = self.writeSCPIBinary("trac:XY?")
+                self._xy_supported = True
+                arr = numpy.frombuffer(data, dtype='<f4')
+                # reshape() returns a new array; assigning to arr.shape is deprecated in recent
+                # NumPy. The result is a read-only view on the received bytes, so copy it.
+                return arr.reshape(-1, 2).copy()
+            except OSAError as err:
+                if "ERR 100" not in str(err):
+                    raise
+                self._xy_supported = False      # unknown command: remember, use the fallback
+            finally:
+                self.ser.timeout = old_timeout
+        xy = self.getXYSeparate(form, True, scan_number_at, timeout)
+        return xy[numpy.argsort(xy[:, 0], kind="stable")]
+ 
     # ------------------------------------------------- separate X and Y vectors
     # For firmware without TRAC:XY?. Manual: sections 7.8.2 (X?, Y?, XAUTO?) and 7.8.3 (FORMat).
-
+ 
     _FORMS = {"ascii": "ASCII", "real32": "REAL,32", "real64": "REAL,64"}
-
+ 
     def getFormat(self):
         ''' Returns the unit's current data transfer format: "ascii", "real32" or "real64". '''
         answer = self.writeSCPI("form?").strip().upper().replace(" ", "")
@@ -133,14 +147,14 @@ class ID_OSA_Serial:
         if answer in ("REAL,64", "REAL"):      # plain REAL is 64 bit per the manual
             return "real64"
         raise ValueError("Unexpected reply to FORM?: %r" % answer)
-
+ 
     def setFormat(self, form):
         ''' Sets the data transfer format used by X? and Y?.
             form: "ascii" (factory default), "real32" or "real64" (binary). '''
         if form not in self._FORMS:
             raise ValueError("form must be one of %s, not %r" % (sorted(self._FORMS), form))
         self.writeSCPI("form " + self._FORMS[form])
-
+ 
     def _readVector(self, command, form, timeout):
         ''' Reads one trace vector as a float64 numpy array. '''
         old_timeout = self.ser.timeout
@@ -162,13 +176,24 @@ class ID_OSA_Serial:
             return numpy.frombuffer(data, dtype=dtype).astype(numpy.float64)
         finally:
             self.ser.timeout = old_timeout
-
+ 
+    def _expectedPoints(self):
+        ''' Number of data points per trace. TRAC:SNUM? where available; firmware 1.2.0 does
+            not have it, so fall back to POIN? (samples per sweep). '''
+        try:
+            return int(float(self.writeSCPI("trac:snum?")))
+        except OSAError as err:
+            if "ERR 100" not in str(err):
+                raise
+        return int(float(self.writeSCPI("poin?")))
+ 
     def _dropScanNumber(self, vec, scan_number_at):
-        ''' The manual says X? and Y? return SNUM? + 1 values, the extra one being the scan number
-            (it does not say at which end). Removes that value. '''
+        ''' The manual (newer firmware) says X? and Y? return one value more than the number of
+            points, the extra one being the scan number, without saying at which end. Firmware
+            1.2.0 returns exactly the number of points, and then nothing is removed. '''
         if scan_number_at == "none":
             return vec
-        n = int(float(self.writeSCPI("trac:snum?")))
+        n = self._expectedPoints()
         extra = len(vec) - n
         if extra == 0:
             return vec
@@ -188,7 +213,7 @@ class ID_OSA_Serial:
             return vec[:-1]
         raise ValueError("Could not tell which end holds the scan number. Pass "
                          "scan_number_at='first' or 'last'.")
-
+ 
     def getX(self, form=None, auto=False, scan_number_at="auto", timeout=60.0):
         ''' Returns the X axis of the last scan as a numpy array.
             form: None (default) uses the unit's current format (see getFormat()).
@@ -200,13 +225,13 @@ class ID_OSA_Serial:
         command = "trac:xauto?" if auto else "trac:x?"
         vec = self._readVector(command, form, timeout)
         return self._dropScanNumber(vec, scan_number_at)
-
+ 
     def getY(self, form=None, scan_number_at="auto", timeout=60.0):
         ''' Returns the power data of the last scan as a numpy array (dBm or mW depending on
             TRAC:LINL). Ordered from shortest to longest wavelength. Arguments as in getX(). '''
         vec = self._readVector("trac:y?", form, timeout)
         return self._dropScanNumber(vec, scan_number_at)
-
+ 
     def getXYSeparate(self, form=None, auto=False, scan_number_at="auto", timeout=60.0):
         ''' Like getXY(), but built from separate X? and Y? reads, for firmware without XY?.
             Returns an (N, 2) numpy array. '''
@@ -215,25 +240,25 @@ class ID_OSA_Serial:
         if len(x) != len(y):
             raise ValueError("X has %d values but Y has %d" % (len(x), len(y)))
         return numpy.column_stack((x, y))
-
+ 
     def waitOPC(self):
         self.writeSCPI("*wai")
-
+ 
     # ------------------------------------------------------------------ low level
-
+ 
     def _send(self, commandstr):
         # Discard stale bytes, then send with a single line feed. The manual warns that
         # two terminators (e.g. ";" and LF) cause "ERR 100", so strip any trailing ";".
         self.ser.reset_input_buffer()
         self.ser.write((commandstr.strip().rstrip(";") + "\n").encode("ascii"))
-
+ 
     def _read_exact(self, count):
         data = self.ser.read(count)
         if len(data) != count:
             raise TimeoutError("Timed out: got %d of %d bytes from %s"
                                % (len(data), count, self.port))
         return data
-
+ 
     def writeSCPI(self, commandstr):
         ''' Sends one SCPI command and returns the reply without its trailing ";". '''
         self._send(commandstr)
@@ -243,8 +268,10 @@ class ID_OSA_Serial:
         answer = line.decode("ascii", errors="replace").strip()
         if answer.endswith(";"):
             answer = answer[:-1]
+        if answer.startswith("ERR"):
+            raise OSAError("%s (command: %r)" % (answer, commandstr))
         return answer
-
+ 
     def writeSCPIBinary(self, commandstr):
         ''' Sends a command whose reply is an IEEE 488.2 binary block (#<n><len><data>). '''
         self._send(commandstr)
@@ -252,23 +279,14 @@ class ID_OSA_Serial:
         if first != b"#":
             # Not a binary block: most likely an error message, e.g. "ERR 250"
             rest = self.ser.read_until(b"\n")
-            raise IOError("Unexpected reply to %r: %r"
-                          % (commandstr, (first + rest).decode("ascii", errors="replace").strip()))
+            raise OSAError("Unexpected reply to %r: %r"
+                           % (commandstr, (first + rest).decode("ascii", errors="replace").strip()))
         cntcnt = int(self._read_exact(1).decode("ascii"))
         cnt = int(self._read_exact(cntcnt).decode("ascii"))
         data = self._read_exact(cnt)
         self.ser.read_until(b"\n")      # consume the trailing ";" + line ending
         return data
-
-
-
-
-# # Alias so scripts written for the original API (osa = ID_OSA(...)) keep working.
-# # Pass a COM port such as 'COM5' instead of an IP address.
-# ID_OSA = ID_OSA_Serial
-
-
-
+ 
 
 
 
