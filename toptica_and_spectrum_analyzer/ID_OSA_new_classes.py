@@ -95,13 +95,51 @@ class ID_OSA_Serial:
         span = stop - start
         self.setCenterSpanFreq(center, span)
  
-    # ------------------------------------------------------------------ scanning
+     # --------------------------------------------------------------- averaging
+    # The OSA has no exposure time. Scan averages make it take N scans and report one
+    # averaged scan, so the scan time becomes about N x 0.5 s (manual section 6.4).
  
-    def getScanNumber(self):
-        return self.writeSCPI("numb?")
+    def getScanAverages(self):
+        ''' Number of scans the unit averages internally per reported scan (1 to 1000). '''
+        return int(float(self.writeSCPI("aver:scancoun?")))
  
-    def triggerScan(self, timeout=60.0):
-        ''' Starts a single scan and blocks until the scan number has increased. '''
+    def setScanAverages(self, count):
+        ''' Sets the scan averages (1 to 1000). A scan then takes about count x 0.5 s.
+            Returns the value the unit reports back. '''
+        count = int(count)
+        if not 1 <= count <= 1000:
+            raise ValueError("Scan averages must be between 1 and 1000, not %d" % count)
+        self.writeSCPI("aver:scancoun %d" % count)
+        return self.getScanAverages()
+ 
+    def getMovingAverages(self):
+        ''' Number of results in the rolling (moving) average window (1 to 100). '''
+        return int(float(self.writeSCPI("aver:coun?")))
+ 
+    def setMovingAverages(self, count):
+        ''' Sets the moving average window (1 to 100): each reported scan is averaged with the
+            previous ones in a first-in-first-out buffer. This does not lengthen the scan time.
+            Returns the value the unit reports back. '''
+        count = int(count)
+        if not 1 <= count <= 100:
+            raise ValueError("Moving averages must be between 1 and 100, not %d" % count)
+        self.writeSCPI("aver:coun %d" % count)
+        return self.getMovingAverages()
+ 
+    def _scanTimeout(self):
+        ''' Seconds to wait for one scan: at least 60, longer when many scan averages are set
+            (each scan takes about 0.5 s, so allow 1 s per average plus 10 s). '''
+        try:
+            count = self.getScanAverages()
+        except OSAError:
+            return 60.0
+        return max(60.0, 10.0 + 1.0 * count)
+ 
+    def triggerScan(self, timeout=None):
+        ''' Starts a single scan and blocks until the scan number has increased.
+            timeout: seconds to wait. None (default) picks one from the scan averages setting. '''
+        if timeout is None:
+            timeout = self._scanTimeout()
         num = self.getScanNumber()
         self.writeSCPI("SGL")
         t0 = time.time()
@@ -109,6 +147,7 @@ class ID_OSA_Serial:
             if time.time() - t0 > timeout:
                 raise TimeoutError("Scan did not complete within %.0f s" % timeout)
             time.sleep(0.02)
+ 
  
     def getXY(self, form=None, scan_number_at="auto", timeout=60.0):
         ''' Returns an (N, 2) numpy array of (x, power[dB]) from the last scan, sorted by
