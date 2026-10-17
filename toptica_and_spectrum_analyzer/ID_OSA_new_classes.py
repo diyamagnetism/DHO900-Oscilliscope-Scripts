@@ -241,6 +241,53 @@ class ID_OSA_Serial:
             raise ValueError("X has %d values but Y has %d" % (len(x), len(y)))
         return numpy.column_stack((x, y))
  
+    
+    def saveSpectrumCSV(self, filename, trigger=False, form=None, timeout=60.0, retries=3):
+        ''' Reads the spectrum the OSA currently holds and writes it to a CSV file.
+            Columns: wavelength_nm, frequency_THz, power_dBm (power_mW if TRAC:LINL is LIN).
+            Rows are ordered from shortest to longest wavelength, as the unit returns them.
+            filename: path of the CSV file; ".csv" is added if it has no extension.
+            trigger:  True starts a new single scan first. False (default) saves the last scan
+                      the unit has (the scan on its screen / web GUI).
+            form:     data transfer format for X? / Y?, see getX(). None uses the current one.
+            retries:  if a new scan arrives while X and Y are being read (continuous mode),
+                      the two would not match, so the read is repeated up to this many times.
+            Returns (path, data) where data is an (N, 3) numpy array of the saved columns. '''
+        if not os.path.splitext(filename)[1]:
+            filename += ".csv"
+        if trigger:
+            self.triggerScan()
+        x = y = None
+        for attempt in range(retries):
+            scan_before = self.getScanNumber()
+            x = self.getX(form=form, timeout=timeout)       # wavelength in m
+            y = self.getY(form=form, timeout=timeout)
+            if self.getScanNumber() == scan_before:
+                break
+            x = y = None                                    # a new scan arrived mid-read
+        if x is None:
+            raise IOError("The unit kept scanning while the data was read. Stop continuous "
+                          "scanning (send SGL for a single scan) and try again.")
+        if len(x) != len(y):
+            raise ValueError("X has %d values but Y has %d" % (len(x), len(y)))
+ 
+        try:
+            scale = self.writeSCPI("trac:linl?").upper()
+        except OSAError:
+            scale = ""
+        power_unit = "mW" if scale.startswith("LIN") else "dBm"
+ 
+        c = 299792458.0                                     # speed of light in m/s
+        wavelength_nm = x * 1e9
+        frequency_THz = c / x / 1e12
+        data = numpy.column_stack((wavelength_nm, frequency_THz, y))
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["wavelength_nm", "frequency_THz", "power_" + power_unit])
+            for row in data:
+                writer.writerow(["%.9g" % row[0], "%.9g" % row[1], "%.9g" % row[2]])
+        return os.path.abspath(filename), data
+ 
     def waitOPC(self):
         self.writeSCPI("*wai")
  
