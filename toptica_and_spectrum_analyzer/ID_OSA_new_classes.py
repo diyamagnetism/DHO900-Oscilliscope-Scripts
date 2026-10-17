@@ -18,6 +18,25 @@ def find_ports():
     ''' Returns a list of (device, description) for all serial ports on this PC. '''
     return [(p.device, p.description) for p in list_ports.comports()]
 
+# Serial (USB virtual COM port) version of the ID Photonics ID OSA Python API.
+# Adapted from the TCP/IP version (ID_OSA_IP) by Christian Schwarz / id-photonics.com.
+#
+# Requires:  pip install pyserial numpy
+# Close PuTTY (or any other program) before running: only one program can hold the COM port.
+# -----------------------------------------------------------------------------------
+
+import time
+from decimal import Decimal
+
+import numpy
+import serial
+from serial.tools import list_ports
+
+
+def find_ports():
+    ''' Returns a list of (device, description) for all serial ports on this PC. '''
+    return [(p.device, p.description) for p in list_ports.comports()]
+
 
 class ID_OSA_Serial:
     def __init__(self, port, baudrate=115200, timeout=10.0):
@@ -98,14 +117,104 @@ class ID_OSA_Serial:
                 raise TimeoutError("Scan did not complete within %.0f s" % timeout)
             time.sleep(0.02)
 
-    def getXY(self):
-        ''' Returns an (N, 2) numpy array of (x, power[dB]) from the last scan.
-            x is in Hz or m depending on the UNIT:X setting. '''
-        wave_data = self.writeSCPIBinary("trac:X?")
-        pwr_data = self.writeSCPIBinary("trac:Y?")
-        wave_arr = numpy.frombuffer(wave_data, dtype='<f4')
-        pwr_arr = numpy.frombuffer(pwr_data, dtype='<f4')
-        return numpy.column_stack((wave_arr, pwr_arr))
+
+    # ------------------------------------------------- separate X and Y vectors
+    # For firmware without TRAC:XY?. Manual: sections 7.8.2 (X?, Y?, XAUTO?) and 7.8.3 (FORMat).
+
+    _FORMS = {"ascii": "ASCII", "real32": "REAL,32", "real64": "REAL,64"}
+
+    def getFormat(self):
+        ''' Returns the unit's current data transfer format: "ascii", "real32" or "real64". '''
+        answer = self.writeSCPI("form?").strip().upper().replace(" ", "")
+        if answer.startswith("ASCII"):
+            return "ascii"
+        if answer == "REAL,32":
+            return "real32"
+        if answer in ("REAL,64", "REAL"):      # plain REAL is 64 bit per the manual
+            return "real64"
+        raise ValueError("Unexpected reply to FORM?: %r" % answer)
+
+    def setFormat(self, form):
+        ''' Sets the data transfer format used by X? and Y?.
+            form: "ascii" (factory default), "real32" or "real64" (binary). '''
+        if form not in self._FORMS:
+            raise ValueError("form must be one of %s, not %r" % (sorted(self._FORMS), form))
+        self.writeSCPI("form " + self._FORMS[form])
+
+    def _readVector(self, command, form, timeout):
+        ''' Reads one trace vector as a float64 numpy array. '''
+        old_timeout = self.ser.timeout
+        self.ser.timeout = timeout          # full-length traces can take a while
+        try:
+            if form is None:
+                form = self.getFormat()     # use whatever the unit is set to
+            else:
+                self.setFormat(form)
+            if form == "ascii":
+                text = self.writeSCPI(command).strip().strip(",")
+                return numpy.array(text.split(","), dtype=float)
+            data = self.writeSCPIBinary(command)
+            dtype = "<f4" if form == "real32" else "<f8"
+            if len(data) % numpy.dtype(dtype).itemsize != 0:
+                raise IOError("Binary reply of %d bytes does not fit %s values. Is the format "
+                              "really %s?" % (len(data), dtype, form))
+            # astype makes a new, writable float64 copy of the read-only buffer view
+            return numpy.frombuffer(data, dtype=dtype).astype(numpy.float64)
+        finally:
+            self.ser.timeout = old_timeout
+
+    def _dropScanNumber(self, vec, scan_number_at):
+        ''' The manual says X? and Y? return SNUM? + 1 values, the extra one being the scan number
+            (it does not say at which end). Removes that value. '''
+        if scan_number_at == "none":
+            return vec
+        n = int(float(self.writeSCPI("trac:snum?")))
+        extra = len(vec) - n
+        if extra == 0:
+            return vec
+        if extra != 1:
+            raise ValueError("Expected %d or %d values but received %d" % (n, n + 1, len(vec)))
+        if scan_number_at == "first":
+            return vec[1:]
+        if scan_number_at == "last":
+            return vec[:-1]
+        # "auto": the extra value is the one equal to the current scan number (NUMB?)
+        scan = float(self.writeSCPI("numb?"))
+        first_is = vec[0] == scan
+        last_is = vec[-1] == scan
+        if first_is and not last_is:
+            return vec[1:]
+        if last_is and not first_is:
+            return vec[:-1]
+        raise ValueError("Could not tell which end holds the scan number. Pass "
+                         "scan_number_at='first' or 'last'.")
+
+    def getX(self, form=None, auto=False, scan_number_at="auto", timeout=60.0):
+        ''' Returns the X axis of the last scan as a numpy array.
+            form: None (default) uses the unit's current format (see getFormat()).
+                  "ascii", "real32" or "real64" sets that format first. Binary is much faster.
+            auto: False reads TRAC:X? (always wavelength in m).
+                  True reads TRAC:XAUTO? (m or Hz depending on the UNIT:X setting).
+            scan_number_at: "auto" (find it using NUMB?), "first", "last", or "none" to keep it.
+            timeout: seconds to wait for the reply. '''
+        command = "trac:xauto?" if auto else "trac:x?"
+        vec = self._readVector(command, form, timeout)
+        return self._dropScanNumber(vec, scan_number_at)
+
+    def getY(self, form=None, scan_number_at="auto", timeout=60.0):
+        ''' Returns the power data of the last scan as a numpy array (dBm or mW depending on
+            TRAC:LINL). Ordered from shortest to longest wavelength. Arguments as in getX(). '''
+        vec = self._readVector("trac:y?", form, timeout)
+        return self._dropScanNumber(vec, scan_number_at)
+
+    def getXYSeparate(self, form=None, auto=False, scan_number_at="auto", timeout=60.0):
+        ''' Like getXY(), but built from separate X? and Y? reads, for firmware without XY?.
+            Returns an (N, 2) numpy array. '''
+        x = self.getX(form, auto, scan_number_at, timeout)
+        y = self.getY(form, scan_number_at, timeout)
+        if len(x) != len(y):
+            raise ValueError("X has %d values but Y has %d" % (len(x), len(y)))
+        return numpy.column_stack((x, y))
 
     def waitOPC(self):
         self.writeSCPI("*wai")
@@ -134,7 +243,6 @@ class ID_OSA_Serial:
         answer = line.decode("ascii", errors="replace").strip()
         if answer.endswith(";"):
             answer = answer[:-1]
-        print("RX: >" + answer + "<")
         return answer
 
     def writeSCPIBinary(self, commandstr):
@@ -151,6 +259,8 @@ class ID_OSA_Serial:
         data = self._read_exact(cnt)
         self.ser.read_until(b"\n")      # consume the trailing ";" + line ending
         return data
+
+
 
 
 # # Alias so scripts written for the original API (osa = ID_OSA(...)) keep working.
@@ -234,8 +344,8 @@ class ID_OSA_IP:
             time.sleep(0.02)
 
     def getXY(self):
-        wave_data = self.writeSCPIBinary("trac:X?")
-        pwr_data = self.writeSCPIBinary("trac:Y?")
+        wave_data = self.writeSCPIBinary("TRAC:X?")
+        pwr_data = self.writeSCPIBinary("TRAC:Y?")
         wave_arr = numpy.frombuffer(wave_data, dtype='<f4')
         pwr_arr = numpy.frombuffer(pwr_data, dtype='<f4')
         return numpy.column_stack((wave_arr, pwr_arr))
