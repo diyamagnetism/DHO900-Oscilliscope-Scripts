@@ -12,7 +12,11 @@ from decimal import Decimal
 import numpy
 import serial
 from serial.tools import list_ports
+import csv
+import os
 
+
+SPEED_OF_LIGHT = 299792458.0                                     # speed of light in m/s
 
 def find_ports():
     ''' Returns a list of (device, description) for all serial ports on this PC. '''
@@ -73,7 +77,7 @@ class ID_OSA_Serial:
  
     def setStartStopWL(self, startWLnm, stopWLnm):
         ''' Sets start and stop wavelength of the OSA in nm. '''
-        c = 299792458.0  # speed of light
+        c = SPEED_OF_LIGHT  # speed of light
         start = c / stopWLnm / 1000
         stop = c / startWLnm / 1000
         center = (start + stop) * 1. / 2
@@ -82,7 +86,7 @@ class ID_OSA_Serial:
  
     def setCenterSpanWL(self, centerWLnm, spanWLnm):
         ''' Sets center wavelength and span of the OSA in nm. '''
-        c = 299792458.0  # speed of light
+        c = SPEED_OF_LIGHT    # speed of light
         stopWLnm = centerWLnm + spanWLnm * 1. / 2
         startWLnm = centerWLnm - spanWLnm * 1. / 2
         start = c / stopWLnm / 1000
@@ -277,7 +281,7 @@ class ID_OSA_Serial:
             scale = ""
         power_unit = "mW" if scale.startswith("LIN") else "dBm"
  
-        c = 299792458.0                                     # speed of light in m/s
+        c = SPEED_OF_LIGHT
         wavelength_nm = x * 1e9
         frequency_THz = c / x / 1e12
         data = numpy.column_stack((wavelength_nm, frequency_THz, y))
@@ -485,3 +489,12 @@ class ID_OSA_IP:
             except BlockingIOError:
                 time.sleep(0.01)
                 pass
+
+
+convert_m_to_nm = lambda x: x * 1e9
+convert_Hz_to_THz = lambda x: x * 1e-12
+convert_Hz_to_m = lambda x: 299792458.0 / x
+convert_Hz_to_nm = lambda x: convert_m_to_nm(convert_Hz_to_m(x))
+convert_THz_to_Hz = lambda x: x * 1e12
+convert_nm_to_m = lambda x: x * 1e-9
+convert_nm_to_Hz = lambda x: 299792458.0 / convert_nm_to_m(x)
