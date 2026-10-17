@@ -98,6 +98,9 @@ class ID_OSA_Serial:
      # --------------------------------------------------------------- averaging
     # The OSA has no exposure time. Scan averages make it take N scans and report one
     # averaged scan, so the scan time becomes about N x 0.5 s (manual section 6.4).
+
+    def getScanNumber(self):
+        return self.writeSCPI("numb?")
  
     def getScanAverages(self):
         ''' Number of scans the unit averages internally per reported scan (1 to 1000). '''
