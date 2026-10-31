@@ -27,7 +27,8 @@ AI_CHANNEL = "ai1"            # Analog input channel to read
 MIN_VOLTAGE = -10.0           # Expected minimum input voltage (V)
 MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
 
-SAMPLE_INTERVAL_S = 1.0       # Time between reads (seconds)
+
+SAMPLE_INTERVAL_S = 0.1      # Time between reads (seconds)
 NUM_SAMPLES = 400              # Number of readings to take
 
 OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\1550_calibration"  # Directory for output CSV files
