@@ -21,11 +21,20 @@ from datetime import datetime
 import nidaqmx
 from nidaqmx.constants import TerminalConfiguration
 
+from nidaqmx.constants import AcquisitionType
+
+
+
+
+
 # ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
 DEVICE_NAME = "Dev1"          # Device name as it appears in NI MAX
 AI_CHANNEL = "ai1"            # Analog input channel to read
 MIN_VOLTAGE = -10.0           # Expected minimum input voltage (V)
 MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
+
+FS = 10000            # Hz, hardware sample clock
+N_AVG = 10000         # samples per reading (1 s per reading at 10 kS/s)
 
 
 SAMPLE_INTERVAL_S = 0.1      # Time between reads (seconds)
@@ -35,11 +44,16 @@ OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\1550_calibration"  # Direct
 OUTPUT_CSV_PREFIX = "calibration_voltage"  # Output CSV file prefix (timestamp is appended)
 # ----------------------------------------------------------------------------
  
- 
-def read_voltage(task):
-    """Take a single voltage reading from the given (already-open) AI task."""
-    return task.read()
- 
+task.timing.cfg_samp_clk_timing(
+    FS, sample_mode=AcquisitionType.FINITE, samps_per_chan=N_AVG)
+
+
+
+
+def read_voltage_avg(task):
+    data = np.array(task.read(number_of_samples_per_channel=N_AVG,
+                              timeout=N_AVG / FS + 5))
+    return data.mean(), data.std()
  
 def main():
     run_start = datetime.now().strftime("%Y%m%d_%H%M")
