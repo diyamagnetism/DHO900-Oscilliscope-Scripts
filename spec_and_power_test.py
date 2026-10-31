@@ -4,6 +4,7 @@ from toptica_and_spectrum_analyzer.ID_OSA_new_classes import *
 from DAQ_reading.ni_usb6251_control import *
 import matplotlib.pyplot as plt
 import numpy as np
+from collections import deque
 
 
 # ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
@@ -40,12 +41,11 @@ osa.setScanAverages(100)
 run_start = datetime.now().strftime("%Y%m%d_%H%M")
 os.makedirs(OUTPUT_CSV_DIRECTORY, exist_ok=True)
 output_csv = os.path.join(OUTPUT_CSV_DIRECTORY, f"{OUTPUT_CSV_PREFIX}_{run_start}.csv")
-
 with open(output_csv, mode="w", newline="") as f, \
         nidaqmx.Task() as task:
 
     writer = csv.writer(f)
-    writer.writerow(["timestamp", "measured_voltage_V"])
+    writer.writerow(["timestamp", "measured_voltage_V", "moving_avg_V"])
 
     task.ai_channels.add_ai_voltage_chan(
         f"{DEVICE_NAME}/{AI_CHANNEL}",
@@ -54,20 +54,27 @@ with open(output_csv, mode="w", newline="") as f, \
         max_val=MAX_VOLTAGE,
     )
 
-
     voltages = []
+    window = deque(maxlen=MOVING_AVG_WINDOW)   # old samples drop off automatically
     for i in range(NUM_SAMPLES):
         voltage = read_voltage(task)
         voltages.append(voltage)
+        window.append(voltage)
+        moving_avg = np.mean(window)           # averages fewer points until the window fills
+
         timestamp = datetime.now().isoformat()
-        writer.writerow([timestamp, voltage])
+        writer.writerow([timestamp, voltage, moving_avg])
         f.flush()
-        print(f"{timestamp}  ->  {voltage:.4f} V")
+        print(f"{timestamp}  ->  {voltage:.4f} V   "
+              f"(moving avg, n={len(window)}: {moving_avg:.4f} V)")
 
         if i < NUM_SAMPLES - 1:
             time.sleep(SAMPLE_INTERVAL_S)
 
-print(f"\nDone. Log written to: {output_csv}. Avg voltage: {np.mean(voltages):.4f} V")
+print(f"\nDone. Log written to: {output_csv}. "
+      f"Overall avg: {np.mean(voltages):.4f} V, "
+      f"final moving avg: {moving_avg:.4f} V")
+
 
 
 
