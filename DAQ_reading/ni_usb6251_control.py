@@ -20,9 +20,9 @@ from datetime import datetime
 
 import nidaqmx
 from nidaqmx.constants import TerminalConfiguration
-
+import numpy as np
 from nidaqmx.constants import AcquisitionType
-
+from collections import deque
 
 
 
@@ -36,6 +36,7 @@ MAX_VOLTAGE = 10.0            # Expected maximum input voltage (V)
 FS = 10000            # Hz, hardware sample clock
 N_AVG = 10000         # samples per reading (1 s per reading at 10 kS/s)
 
+MOVING_AVG_WINDOW = 10
 
 SAMPLE_INTERVAL_S = 0.1      # Time between reads (seconds)
 NUM_SAMPLES = 400              # Number of readings to take
@@ -44,9 +45,6 @@ OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\1550_calibration"  # Direct
 OUTPUT_CSV_PREFIX = "calibration_voltage"  # Output CSV file prefix (timestamp is appended)
 # ----------------------------------------------------------------------------
  
-task.timing.cfg_samp_clk_timing(
-    FS, sample_mode=AcquisitionType.FINITE, samps_per_chan=N_AVG)
-
 
 
 
@@ -54,6 +52,8 @@ def read_voltage_avg(task):
     data = np.array(task.read(number_of_samples_per_channel=N_AVG,
                               timeout=N_AVG / FS + 5))
     return data.mean(), data.std()
+
+
  
 def main():
     run_start = datetime.now().strftime("%Y%m%d_%H%M")
@@ -72,9 +72,18 @@ def main():
             min_val=MIN_VOLTAGE,
             max_val=MAX_VOLTAGE,
         )
- 
+        task.timing.cfg_samp_clk_timing(FS, sample_mode=AcquisitionType.FINITE, samps_per_chan=N_AVG)
+
+
+        voltages = []
+        window = deque(maxlen=MOVING_AVG_WINDOW)   # old samples drop off automatically
         for i in range(NUM_SAMPLES):
-            voltage = read_voltage(task)
+            voltage, noise = read_voltage_avg(task)
+            voltages.append(voltage)
+            window.append(voltage)
+            moving_avg = np.mean(window)           # averages fewer points until the window fills
+
+
             timestamp = datetime.now().isoformat()
             writer.writerow([timestamp, voltage])
             f.flush()
