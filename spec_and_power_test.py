@@ -7,7 +7,7 @@ import numpy as np
 from nidaqmx.constants import AcquisitionType
 from collections import deque
 
-from toptica_and_spectrum_analyzer.spec_test import SAVE_PATH_SPEC
+
 
 # ----------------------- USER-CONFIGURABLE SETTINGS -----------------------
 DEVICE_NAME = "Dev1"          # Device name as it appears in NI MAX
@@ -22,10 +22,10 @@ N_AVG = 10000         # samples per reading (1 s per reading at 10 kS/s)
 MOVING_AVG_WINDOW = 10         # Number of samples to average for moving average
 
 SAMPLE_INTERVAL_S = 0.08       # Time between reads (seconds)
-NUM_SAMPLES = 200              # Number of readings to take
+NUM_SAMPLES = 100              # Number of readings to take
 
 OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\spec_1_daq_99"  # Directory for output CSV files
-OUTPUT_CSV_PREFIX = "piezo_50"  # Output CSV file prefix (timestamp is appended)
+OUTPUT_CSV_PREFIX = "piezo_54"  # Output CSV file prefix (timestamp is appended)
 
 
 # ----------------------------------------------------------------------------
@@ -42,7 +42,7 @@ osa.waitOPC()
 osa.setScanAverages(100)
 
 
-SAVE_PATH_SPEC_PREFIX = f'toptica_and_spectrum_analyzer\\spectrum_data\\{OUTPUT_CSV_PREFIX}_spectrum_data'
+SAVE_PATH_SPEC = f'toptica_and_spectrum_analyzer\\spectrum_data\\spec_1_daq_99\\{OUTPUT_CSV_PREFIX}_spectrum_data'
 is_save_spec = True
 TIMEOUT = 200
 #--------------------------------------------------------------------------------
@@ -107,23 +107,23 @@ for i in range(5):
     print(f'{xy[0][0]} Hz')     # x (Hz or m)
     print(f'{xy[0][1]} dB')     # power
 
-    plt.figure()
-    plt.plot([convert_Hz_to_nm(x[0]) for x in xy], [y[1] for y in xy])
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Power (dBm)')
-    plt.title('Spectrum Analysis')
-    plt.show()
+    # plt.figure()
+    # plt.plot([convert_Hz_to_nm(x[0]) for x in xy], [y[1] for y in xy])
+    # plt.xlabel('Wavelength (nm)')
+    # plt.ylabel('Power (dBm)')
+    # plt.title('Spectrum Analysis')
+    # plt.show()
 
 
     if is_save_spec:
         spec_start = datetime.now().strftime("%Y%m%d_%H%M")
-        
-        spec_output_csv = os.path.join(OUTPUT_CSV_DIRECTORY, f"{SAVE_PATH_SPEC_PREFIX}_{run_start}_{spec_start}.csv")
 
-        path, data = osa.saveSpectrumCSV(f"{ spec_output_csv}")
+        path_csv = os.path.join(f"{SAVE_PATH_SPEC}_{spec_start}.csv")
+        
+        path, data = osa.saveSpectrumCSV(path_csv)
         print("Saved spectrum data to:", path)
 
-    time.sleep(1)
+    # time.sleep(1)
 
 osa.close()
 

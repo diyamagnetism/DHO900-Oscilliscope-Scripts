@@ -38,11 +38,11 @@ N_AVG = 10000         # samples per reading (1 s per reading at 10 kS/s)
 
 MOVING_AVG_WINDOW = 10
 
-SAMPLE_INTERVAL_S = 0.1      # Time between reads (seconds)
-NUM_SAMPLES = 400              # Number of readings to take
+SAMPLE_INTERVAL_S = 0.05      # Time between reads (seconds)
+NUM_SAMPLES = 200              # Number of readings to take
 
-OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\1550_calibration"  # Directory for output CSV files
-OUTPUT_CSV_PREFIX = "calibration_voltage"  # Output CSV file prefix (timestamp is appended)
+OUTPUT_CSV_DIRECTORY = "DAQ_reading\\ppln_only_data\\spec_1_daq_99" # Directory for output CSV files
+OUTPUT_CSV_PREFIX = "piezo_90"  # Output CSV file prefix (timestamp is appended)
 # ----------------------------------------------------------------------------
  
 

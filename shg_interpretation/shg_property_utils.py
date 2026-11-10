@@ -1,6 +1,9 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+from toptica_and_spectrum_analyzer.ID_OSA_new_classes import *
 
 def find_highest_mean_voltage(folder, pattern="*.csv", voltage_col="voltage"):
     """
